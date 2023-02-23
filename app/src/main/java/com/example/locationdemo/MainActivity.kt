@@ -1,5 +1,6 @@
 package com.example.locationdemo
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Criteria
@@ -20,7 +21,7 @@ class MainActivity : AppCompatActivity() {
 
     val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-           binding.tvOutput.append("Neue Location -> Breite: ${location.latitude}, Länge: ${location.longitude}\n")
+            binding.tvOutput.append("Neue Location -> Breite: ${location.latitude}, Länge: ${location.longitude}\n")
         }
     }
 
@@ -31,11 +32,16 @@ class MainActivity : AppCompatActivity() {
 
         manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        if(ActivityCompat.checkSelfPermission(
-                this,android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-        ){
-            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),REQUEST_CODE)
-        }else{
+        if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                REQUEST_CODE
+            )
+        } else {
             doIt()
         }
     }
@@ -46,29 +52,63 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if(REQUEST_CODE == requestCode && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+        if (REQUEST_CODE == requestCode && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED ) {
             doIt()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val criteria = Criteria().apply {
+            powerRequirement = Criteria.POWER_LOW
+            accuracy = Criteria.ACCURACY_FINE
+        }
+        provider = manager.getBestProvider(criteria, true)
+
+        binding.tvOutput.append("\nVerwendet wird: $provider\n")
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED) {
+            manager.requestLocationUpdates(provider!!, 10000, 0F, locationListener)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED) {
+            manager.removeUpdates(locationListener)
         }
     }
 
     private fun doIt() {
         val providers = manager.allProviders
-        providers.forEach { name->
+        providers.forEach { name ->
             val provider = manager.getProvider(name)
-            with(binding.tvOutput){
+            with(binding.tvOutput) {
                 append("Name: $name --> isEnabled: ${manager.isProviderEnabled(name)}\n")
-                append( "requires Cell: ${provider?.requiresCell()}\n")
-                append( "requires Network: ${provider?.requiresNetwork()}\n")
-                append( "requires Sattelite: ${provider?.requiresSatellite()}\n")
+                append("requires Cell: ${provider?.requiresCell()}\n")
+                append("requires Network: ${provider?.requiresNetwork()}\n")
+                append("requires Sattelite: ${provider?.requiresSatellite()}\n")
             }
         }
 
         val criteria = Criteria().apply {
             powerRequirement = Criteria.POWER_LOW
-            accuracy = Criteria.ACCURACY_COARSE
+            accuracy = Criteria.ACCURACY_FINE
         }
-        provider = manager.getBestProvider(criteria,true)
+        provider = manager.getBestProvider(criteria, true)
 
         binding.tvOutput.append("\nVerwendet wird: $provider\n")
+
+//        val location = Location(provider)
+//            location.longitude = Location.convert("49:12")
+//            location.latitude = Location.convert("11:5")
+
+
     }
 }
